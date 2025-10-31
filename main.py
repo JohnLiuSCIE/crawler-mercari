@@ -60,13 +60,15 @@ def close_adapters(adapters: dict):
             logger.error(f"关闭{name}适配器失败: {e}")
 
 
-def run_scraper(headless: bool = True, send_email: bool = True) -> bool:
+def run_scraper(headless: bool = True, send_email: bool = True, parallel: bool = True, max_workers: int = 4) -> bool:
     """
     运行爬虫
 
     Args:
         headless: 是否使用无头模式
         send_email: 是否发送邮件通知
+        parallel: 是否使用并发模式
+        max_workers: 最大并发线程数
 
     Returns:
         是否成功
@@ -74,10 +76,11 @@ def run_scraper(headless: bool = True, send_email: bool = True) -> bool:
     logger.info("=" * 80)
     logger.info("开始爬取任务")
     logger.info(f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"并发模式: {'是' if parallel else '否'} (max_workers={max_workers if parallel else 'N/A'})")
     logger.info("=" * 80)
 
     # 初始化组件
-    engine = ScraperEngine()
+    engine = ScraperEngine(max_workers=max_workers)
     adapters = {}
 
     try:
@@ -95,7 +98,7 @@ def run_scraper(headless: bool = True, send_email: bool = True) -> bool:
         engine.start_scrape_run()
 
         # 执行爬取
-        stats = engine.scrape_all(adapters)
+        stats = engine.scrape_all(adapters, parallel=parallel)
 
         # 完成爬取运行
         engine.complete_scrape_run('completed')
@@ -249,8 +252,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  %(prog)s run                    # 运行爬虫（无头模式）
+  %(prog)s run                    # 运行爬虫（并发模式，无头模式）
   %(prog)s run --show-browser     # 运行爬虫（显示浏览器）
+  %(prog)s run --sequential       # 运行爬虫（顺序模式）
+  %(prog)s run --max-workers 8    # 运行爬虫（8个并发线程）
   %(prog)s report                 # 生成文本报告
   %(prog)s report --html          # 生成HTML报告
   %(prog)s report --html -o report.html  # 保存HTML报告到文件
@@ -279,6 +284,19 @@ def main():
     )
 
     parser.add_argument(
+        '--sequential',
+        action='store_true',
+        help='使用顺序模式爬取（默认使用并发模式）'
+    )
+
+    parser.add_argument(
+        '--max-workers',
+        type=int,
+        default=4,
+        help='最大并发线程数（默认4，仅在并发模式下有效）'
+    )
+
+    parser.add_argument(
         '--html',
         action='store_true',
         help='生成HTML格式报告'
@@ -296,7 +314,9 @@ def main():
     if args.command == 'run':
         run_scraper(
             headless=not args.show_browser,
-            send_email=not args.no_email
+            send_email=not args.no_email,
+            parallel=not args.sequential,
+            max_workers=args.max_workers
         )
 
     elif args.command == 'report':
