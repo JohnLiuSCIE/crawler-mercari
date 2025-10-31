@@ -1,0 +1,40 @@
+# Core dependencies
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+playwright>=1.40.0
+selenium>=4.15.0
+
+# Database
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+
+# Configuration
+pyyaml>=6.0.1
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Scheduling
+apscheduler>=3.10.4
+
+# Notifications
+# Email is built-in with smtplib
+
+# Logging
+loguru>=0.7.2
+
+# Utilities
+python-dateutil>=2.8.2
+pytz>=2023.3
+
+# Social media monitoring (optional)
+tweepy>=4.14.0  # For Twitter/X monitoring
+feedparser>=6.0.10  # For RSS feeds
+
+# Rate limiting
+ratelimit>=2.2.1
+
+# Async support
+aiohttp>=3.9.0
+asyncio>=3.4.3

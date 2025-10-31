@@ -1,0 +1,87 @@
+# 目标抱枕套配置
+# Target dakimakura covers to monitor
+
+items:
+  - id: 1
+    name_cn: "神里绫华 抱枕套"
+    name_jp: "神里綾華 抱き枕カバー"
+    series: "原神"
+    character: "神里綾華"
+    circle: "MILK BAR"
+    event: "C100"
+    artist: "シロガネヒナ"
+    search_keywords:
+      - "神里綾華 抱き枕 シロガネヒナ"
+
+  - id: 2
+    name_cn: "纳西妲 抱枕套"
+    name_jp: "ナヒーダ 抱き枕カバー"
+    series: "原神"
+    character: "ナヒーダ"
+    circle: "MILK BAR"
+    event: "C101"
+    artist: "シロガネヒナ"
+    search_keywords:
+      - "ナヒーダ 抱き枕 シロガネヒナ"
+
+
+  - id: 3
+    name_cn: "瑞希/梦见月瑞希 抱枕套"
+    name_jp: "瑞希／夢見月瑞希 抱き枕カバー"
+    series: "原神"
+    character: "瑞希"
+    circle: "鳩小屋／鳩春"
+    event: "俺の嫁！伍拾"
+    artist: "鳩春"
+    search_keywords:
+      - "瑞希 抱き枕 鳩小屋"
+
+  - id: 4
+    name_cn: "卡斯特丽丝 抱枕套"
+    name_jp: "キャストリス 抱き枕カバー"
+    series: "崩壊：スターレイル"
+    character: "キャストリス"
+    circle: "MILK BAR"
+    event: "C106"
+    artist: "シロガネヒナ"
+    search_keywords:
+      - "キャストリス 抱き枕 シロガネヒナ"
+
+  - id: 5
+    name_cn: "千织 抱枕套"
+    name_jp: "千織 抱き枕カバー"
+    series: "原神"
+    character: "千織"
+    circle: "鳩小屋／鳩春"
+    event: null
+    artist: "鳩春"
+    search_keywords:
+      - "千織 抱き枕 鳩春"
+
+
+  - id: 6
+    name_cn: "卡斯特丽丝 抱枕套 (Royalみるく版)"
+    name_jp: "キャストリス 抱き枕カバー"
+    series: "崩壊：スターレイル"
+    character: "キャストリス"
+    circle: "Royalみるく"
+    event: "C106"
+    artist: "Royalみるく"
+    search_keywords:
+      - "キャストリス 抱き枕 Royalみるく"
+
+
+  - id: 7
+    name_cn: "芭芭拉 抱枕套"
+    name_jp: "バーバラ 抱き枕カバー"
+    series: "原神"
+    character: "バーバラ"
+    circle: "Dragon Kitchen"
+    event: null
+    artist: "さそりがため"
+    search_keywords:
+      - "バーバラ 抱き枕 Dragon Kitchen"
+      - "バーバラ 抱き枕 さそりがため"
+
+# 创作者监控配置
+creators:

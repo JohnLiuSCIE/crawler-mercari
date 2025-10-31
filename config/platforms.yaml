@@ -1,0 +1,105 @@
+# 平台配置
+# Platform configurations
+
+platforms:
+  mercari:
+    name: "メルカリ"
+    name_cn: "Mercari"
+    base_url: "https://jp.mercari.com"
+    search_url: "https://jp.mercari.com/search?keyword={keyword}"
+    enabled: true
+    requires_login: false
+    login_credentials:
+      username: ""  # 如果需要登录，在这里填写
+      password: ""
+    rate_limit:
+      requests_per_minute: 10
+      delay_between_requests: 3  # seconds
+    selectors:
+      search_results: "mer-item-thumbnail"
+      item_title: "mer-heading"
+      item_price: "mer-price"
+      item_status: "mer-button"
+      sold_indicator: "SOLD"
+      available_indicator: "購入手続きへ"
+
+  yahoo_auction:
+    name: "ヤフオク / PayPayフリマ"
+    name_cn: "Yahoo拍卖 / PayPay跳蚤市场"
+    base_url: "https://auctions.yahoo.co.jp"
+    search_url: "https://auctions.yahoo.co.jp/search/search?p={keyword}"
+    paypay_search_url: "https://paypayfleamarket.yahoo.co.jp/search/{keyword}"
+    enabled: true
+    requires_login: false
+    login_credentials:
+      username: ""
+      password: ""
+    rate_limit:
+      requests_per_minute: 8
+      delay_between_requests: 4
+    selectors:
+      search_results: "Product__item"
+      item_title: "Product__titleText"
+      item_price: "Product__priceValue"
+      auction_ended: "終了"
+      auction_active: "入札"
+      buy_now_price: "即決"
+
+  surugaya:
+    name: "駿河屋"
+    name_cn: "骏河屋"
+    base_url: "https://www.suruga-ya.jp"
+    search_url: "https://www.suruga-ya.jp/search?category=&search_word={keyword}"
+    enabled: true
+    requires_login: false
+    login_credentials:
+      username: ""
+      password: ""
+    rate_limit:
+      requests_per_minute: 6
+      delay_between_requests: 5
+    selectors:
+      search_results: "item"
+      item_title: "title"
+      item_price: "price"
+      in_stock_indicator: "カートに入れる"
+      out_of_stock_indicator: "品切中"
+      sold_out_indicator: "通販品切"
+
+  lashinbang:
+    name: "らしんばん"
+    name_cn: "Lashinbang"
+    base_url: "https://www.lashinbang.com"
+    search_url: "https://www.lashinbang.com/search/?q={keyword}"
+    enabled: true
+    requires_login: false
+    login_credentials:
+      username: ""
+      password: ""
+    rate_limit:
+      requests_per_minute: 6
+      delay_between_requests: 5
+    selectors:
+      search_results: "product-item"
+      item_title: "product-title"
+      item_price: "product-price"
+      in_stock_indicator: "在庫あり"
+      out_of_stock_indicator: "在庫なし"
+      sold_indicator: "品切"
+
+# 通用设置
+general:
+  user_agents:
+    - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+
+  request_timeout: 30  # seconds
+  max_retries: 3
+  retry_delay: 5  # seconds
+
+  # 代理设置 (如果需要)
+  proxy:
+    enabled: false
+    http: ""
+    https: ""
