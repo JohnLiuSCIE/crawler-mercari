@@ -59,3 +59,10 @@ Thumbs.db
 scraper.db
 test_results/
 temp/
+
+# Debug scripts
+debug_*.py
+
+# Generated reports and previews
+report.*
+email_preview*.html
