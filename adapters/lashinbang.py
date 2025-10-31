@@ -37,8 +37,8 @@ class LashinbangAdapter(BaseAdapter):
     def build_search_url(self, keyword: str) -> str:
         """构建Lashinbang搜索URL"""
         encoded_keyword = quote(keyword)
-        # Lashinbang搜索URL可能因网站结构而异
-        return f"https://www.lashinbang.com/search/?q={encoded_keyword}"
+        # Actual Lashinbang shop URL format
+        return f"https://shop.lashinbang.com/products/list?name={encoded_keyword}"
 
     def search(self, keywords: List[str]) -> List[str]:
         """
@@ -60,23 +60,24 @@ class LashinbangAdapter(BaseAdapter):
 
             try:
                 self.page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
-                self.page.wait_for_timeout(2000)
+                self.page.wait_for_timeout(3000)
 
-                # Lashinbang的商品链接
-                # 可能是 /products/{商品ID} 或其他格式
-                links = self.page.locator('a[href*="/product"], a[href*="/item"], a.product-link').all()
+                # Lashinbang product links: /products/detail/{ID}
+                links = self.page.locator('a[href*="/products/detail"]').all()
 
                 for link in links[:20]:
                     try:
                         href = link.get_attribute('href')
                         if href:
+                            # Convert relative URLs to absolute
                             if href.startswith('/'):
-                                full_url = f"https://www.lashinbang.com{href}"
+                                full_url = f"https://shop.lashinbang.com{href}"
                             elif not href.startswith('http'):
-                                full_url = f"https://www.lashinbang.com/{href}"
+                                full_url = f"https://shop.lashinbang.com/{href}"
                             else:
                                 full_url = href
 
+                            # Remove query parameters
                             full_url = full_url.split('?')[0]
                             all_urls.add(full_url)
                     except Exception as e:
@@ -105,55 +106,67 @@ class LashinbangAdapter(BaseAdapter):
 
         try:
             self.page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            self.page.wait_for_timeout(2000)
+            self.page.wait_for_timeout(3000)
 
-            # 标题
-            title_element = self.page.locator('h1.product-title, h1, .item-title').first
+            # 标题 - Use h1 directly
+            title_element = self.page.locator('h1').first
             title = title_element.inner_text().strip() if title_element.count() > 0 else ""
 
             if not title:
                 logger.warning(f"无法提取标题: {url}")
                 return None
 
-            # 价格
+            # 价格 - Get first .price element
             price = None
-            price_element = self.page.locator('.product-price, .price, [class*="price"]').first
-            if price_element.count() > 0:
-                price_text = price_element.inner_text().strip()
-                price_match = re.search(r'[¥￥]?\s*([0-9,]+)', price_text)
+            price_elements = self.page.locator('.price').all()
+            if len(price_elements) > 0:
+                price_text = price_elements[0].inner_text().strip()
+                # Extract numbers from text like "1,980円税込"
+                price_match = re.search(r'([0-9,]+)\s*円', price_text)
                 if price_match:
                     price = float(price_match.group(1).replace(',', ''))
 
-            # 状态判断
+            # 状态判断 - Check page content for stock keywords
             status = "available"
             status_text = None
 
             page_content = self.page.content()
 
-            # 检查库存状态
-            if '在庫なし' in page_content or '品切' in page_content or '品切れ' in page_content:
+            # Check for out of stock / sold out
+            if '在庫なし' in page_content or '品切中' in page_content or '品切れ' in page_content:
                 status = "sold"
                 status_text = "在庫なし"
-            elif 'SOLD' in page_content or '売り切れ' in page_content:
+            elif 'SOLD' in page_content or '売り切れ' in page_content or '通販品切' in page_content:
                 status = "sold"
                 status_text = "売り切れ"
-            elif '在庫あり' in page_content or 'カートに追加' in page_content or '購入' in page_content:
+            elif '在庫あり' in page_content or 'カートに入れる' in page_content:
                 status = "available"
                 status_text = "在庫あり"
 
-            # 图片
+            # 图片 - Try common image selectors
             image_url = None
-            img_element = self.page.locator('.product-image img, img.item-img, [class*="product"] img').first
-            if img_element.count() > 0:
-                image_url = img_element.get_attribute('src')
-                if image_url and not image_url.startswith('http'):
-                    image_url = f"https://www.lashinbang.com{image_url}"
+            img_selectors = [
+                'img.item_photo_main',
+                '.product_image img',
+                'img[src*="product"]',
+                '.item_photo img'
+            ]
+            for selector in img_selectors:
+                img_element = self.page.locator(selector).first
+                if img_element.count() > 0:
+                    image_url = img_element.get_attribute('src')
+                    if image_url and not image_url.startswith('http'):
+                        image_url = f"https://shop.lashinbang.com{image_url}"
+                    break
 
-            # 描述
+            # 描述 - Try to get product description
             description = None
-            desc_element = self.page.locator('.product-description, .item-desc, [class*="description"]').first
-            if desc_element.count() > 0:
-                description = desc_element.inner_text().strip()[:500]
+            desc_selectors = ['.product_description', '#description', '[class*="description"]']
+            for selector in desc_selectors:
+                desc_element = self.page.locator(selector).first
+                if desc_element.count() > 0:
+                    description = desc_element.inner_text().strip()[:500]
+                    break
 
             return ScrapedItem(
                 title=title,

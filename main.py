@@ -20,6 +20,9 @@ from notifications.email_notifier import EmailNotifier
 
 # 导入适配器
 from adapters.mercari import MercariAdapter
+from adapters.yahoo_auction import YahooAuctionAdapter
+from adapters.surugaya import SurugayaAdapter
+from adapters.lashinbang import LashinbangAdapter
 
 
 def setup_adapters(headless: bool = True) -> dict:
@@ -44,8 +47,32 @@ def setup_adapters(headless: bool = True) -> dict:
         except Exception as e:
             logger.error(f"加载Mercari适配器失败: {e}")
 
-    # TODO: 添加其他平台的适配器
-    # Yahoo Auction, Surugaya, Lashinbang
+    # Yahoo Auction / PayPay
+    if platforms_config['platforms']['yahoo_auction'].get('enabled', True):
+        try:
+            yahoo_config = platforms_config['platforms']['yahoo_auction']
+            adapters['yahoo_auction'] = YahooAuctionAdapter(yahoo_config, general_config, headless=headless)
+            logger.info("Yahoo拍卖适配器已加载")
+        except Exception as e:
+            logger.error(f"加载Yahoo拍卖适配器失败: {e}")
+
+    # Surugaya
+    if platforms_config['platforms']['surugaya'].get('enabled', True):
+        try:
+            surugaya_config = platforms_config['platforms']['surugaya']
+            adapters['surugaya'] = SurugayaAdapter(surugaya_config, general_config, headless=headless)
+            logger.info("Suruga-ya适配器已加载")
+        except Exception as e:
+            logger.error(f"加载Suruga-ya适配器失败: {e}")
+
+    # Lashinbang
+    if platforms_config['platforms']['lashinbang'].get('enabled', True):
+        try:
+            lashinbang_config = platforms_config['platforms']['lashinbang']
+            adapters['lashinbang'] = LashinbangAdapter(lashinbang_config, general_config, headless=headless)
+            logger.info("Lashinbang适配器已加载")
+        except Exception as e:
+            logger.error(f"加载Lashinbang适配器失败: {e}")
 
     return adapters
 

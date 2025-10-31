@@ -69,8 +69,8 @@ platforms:
   lashinbang:
     name: "らしんばん"
     name_cn: "Lashinbang"
-    base_url: "https://www.lashinbang.com"
-    search_url: "https://www.lashinbang.com/search/?q={keyword}"
+    base_url: "https://shop.lashinbang.com"
+    search_url: "https://shop.lashinbang.com/products/list?name={keyword}"
     enabled: true
     requires_login: false
     login_credentials:

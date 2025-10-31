@@ -19,19 +19,27 @@ class YahooAuctionAdapter(BaseAdapter):
         self.playwright = None
         self.browser: Optional[Browser] = None
         self.page: Optional[Page] = None
-        self._init_browser()
+        self._browser_initialized = False
 
-    def _init_browser(self):
-        """初始化浏览器"""
+    def _ensure_browser(self):
+        """延迟初始化浏览器 - 只在第一次使用时创建"""
+        if self._browser_initialized:
+            return
+
         try:
+            logger.info("初始化Yahoo Auction浏览器...")
             self.playwright = sync_playwright().start()
-            self.browser = self.playwright.chromium.launch(headless=self.headless)
+            self.browser = self.playwright.chromium.launch(
+                headless=self.headless,
+                args=['--disable-blink-features=AutomationControlled']
+            )
             self.page = self.browser.new_page(
                 user_agent=self._get_random_user_agent()
             )
+            self._browser_initialized = True
             logger.info("Yahoo Auction浏览器初始化成功")
         except Exception as e:
-            logger.error(f"浏览器初始化失败: {e}")
+            logger.error(f"Yahoo Auction浏览器初始化失败: {e}")
             raise
 
     def build_search_url(self, keyword: str) -> str:
@@ -74,21 +82,44 @@ class YahooAuctionAdapter(BaseAdapter):
 
     def _search_yahoo_auction(self, keyword: str) -> set:
         """搜索Yahoo Auction"""
+        self._ensure_browser()  # Lazy initialization
         urls = set()
         search_url = self.build_search_url(keyword)
         logger.info(f"搜索Yahoo Auction: {keyword}")
 
         try:
             self.page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
-            self.page.wait_for_timeout(2000)
 
-            # Yahoo Auction的商品链接
-            links = self.page.locator('a[href*="/item/"]').all()
+            # Wait for search results to load
+            try:
+                self.page.wait_for_selector('a[href*="/item/"], .Product, [data-auction-id]', timeout=10000, state='visible')
+            except Exception:
+                logger.warning(f"Yahoo Auction搜索页面未加载完成: {keyword}")
+                return urls
 
-            for link in links[:20]:
+            self.page.wait_for_timeout(1000)
+
+            # Yahoo Auction的商品链接 - 多种选择器
+            # 尝试不同的选择器模式
+            selectors = [
+                'a[href*="page.auctions.yahoo.co.jp/jp/auction/"]',
+                'a[href*="/item/"]',
+                'a[data-auction-id]',
+                '.Product a',
+            ]
+
+            all_links = []
+            for selector in selectors:
+                try:
+                    links = self.page.locator(selector).all()
+                    all_links.extend(links)
+                except:
+                    continue
+
+            for link in all_links[:20]:
                 try:
                     href = link.get_attribute('href')
-                    if href and '/item/' in href:
+                    if href and ('/item/' in href or 'auction/' in href):
                         if href.startswith('/'):
                             full_url = f"https://page.auctions.yahoo.co.jp{href}"
                         elif not href.startswith('http'):
@@ -96,13 +127,17 @@ class YahooAuctionAdapter(BaseAdapter):
                         else:
                             full_url = href
 
-                        full_url = full_url.split('?')[0]
-                        urls.add(full_url)
+                        # Clean URL
+                        full_url = full_url.split('?')[0].split('#')[0]
+
+                        # Only add Yahoo Auction URLs
+                        if 'auctions.yahoo' in full_url or 'page.auctions' in full_url:
+                            urls.add(full_url)
                 except Exception as e:
                     logger.debug(f"提取链接失败: {e}")
                     continue
 
-            logger.info(f"Yahoo Auction找到 {len(urls)} 个商品")
+            logger.info(f"Yahoo Auction找到 {len(urls)} 个商品链接")
 
         except Exception as e:
             logger.error(f"Yahoo Auction搜索失败 '{keyword}': {e}")
@@ -111,6 +146,7 @@ class YahooAuctionAdapter(BaseAdapter):
 
     def _search_paypay(self, keyword: str) -> set:
         """搜索PayPay Flea Market"""
+        self._ensure_browser()  # Lazy initialization
         urls = set()
         search_url = self.build_paypay_search_url(keyword)
         logger.info(f"搜索PayPay Flea Market: {keyword}")
@@ -156,6 +192,7 @@ class YahooAuctionAdapter(BaseAdapter):
         Returns:
             ScrapedItem对象
         """
+        self._ensure_browser()  # Lazy initialization
         logger.debug(f"爬取Yahoo商品详情: {url}")
 
         try:
@@ -177,21 +214,50 @@ class YahooAuctionAdapter(BaseAdapter):
     def _scrape_yahoo_auction_detail(self, url: str) -> Optional[ScrapedItem]:
         """爬取Yahoo Auction商品详情"""
         try:
-            # 标题
-            title_element = self.page.locator('h1.ProductTitle__text, h1').first
-            title = title_element.inner_text().strip() if title_element.count() > 0 else ""
+            # Wait for page to load
+            try:
+                self.page.wait_for_selector('h1, .ProductTitle, [class*="title"]', timeout=15000, state='visible')
+            except Exception:
+                logger.warning(f"Yahoo Auction页面加载超时: {url}")
+
+            # 标题 - 多种选择器
+            title = ""
+            title_selectors = ['h1.ProductTitle__text', 'h1', '.ProductTitle', '[class*="ProductTitle"]']
+            for selector in title_selectors:
+                try:
+                    title_element = self.page.locator(selector).first
+                    if title_element.count() > 0:
+                        title = title_element.inner_text().strip()
+                        if title:
+                            break
+                except:
+                    continue
 
             if not title:
+                logger.warning(f"无法提取标题: {url}")
                 return None
 
-            # 价格
+            # 价格 - 多种选择器
             price = None
-            price_element = self.page.locator('.Price__value, .Price--current').first
-            if price_element.count() > 0:
-                price_text = price_element.inner_text().strip()
-                price_match = re.search(r'[¥￥]?\s*([0-9,]+)', price_text)
-                if price_match:
-                    price = float(price_match.group(1).replace(',', ''))
+            price_selectors = [
+                '.Price__value',
+                '.Price--current',
+                '[class*="Price"]',
+                '[data-label="現在価格"]',
+                '[class*="price"]'
+            ]
+
+            for selector in price_selectors:
+                try:
+                    price_element = self.page.locator(selector).first
+                    if price_element.count() > 0:
+                        price_text = price_element.inner_text().strip()
+                        price_match = re.search(r'[¥￥]?\s*([0-9,]+)', price_text)
+                        if price_match:
+                            price = float(price_match.group(1).replace(',', ''))
+                            break
+                except:
+                    continue
 
             # 状态判断
             status = "available"

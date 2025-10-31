@@ -19,19 +19,24 @@ class SurugayaAdapter(BaseAdapter):
         self.playwright = None
         self.browser: Optional[Browser] = None
         self.page: Optional[Page] = None
-        self._init_browser()
+        self._browser_initialized = False
 
-    def _init_browser(self):
-        """初始化浏览器"""
+    def _ensure_browser(self):
+        """延迟初始化浏览器 - 只在第一次使用时创建（线程安全）"""
+        if self._browser_initialized:
+            return
+
         try:
+            logger.info("初始化Suruga-ya浏览器...")
             self.playwright = sync_playwright().start()
             self.browser = self.playwright.chromium.launch(headless=self.headless)
             self.page = self.browser.new_page(
                 user_agent=self._get_random_user_agent()
             )
+            self._browser_initialized = True
             logger.info("Suruga-ya浏览器初始化成功")
         except Exception as e:
-            logger.error(f"浏览器初始化失败: {e}")
+            logger.error(f"Suruga-ya浏览器初始化失败: {e}")
             raise
 
     def build_search_url(self, keyword: str) -> str:
@@ -49,6 +54,7 @@ class SurugayaAdapter(BaseAdapter):
         Returns:
             商品详情页URL列表
         """
+        self._ensure_browser()  # 延迟初始化浏览器
         all_urls = set()
 
         for keyword in keywords:
@@ -100,28 +106,43 @@ class SurugayaAdapter(BaseAdapter):
         Returns:
             ScrapedItem对象
         """
+        self._ensure_browser()  # 确保浏览器已初始化
         logger.debug(f"爬取Suruga-ya商品详情: {url}")
 
         try:
             self.page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            self.page.wait_for_timeout(2000)
 
-            # 标题
-            title_element = self.page.locator('h1.title, h1, .item_title').first
-            title = title_element.inner_text().strip() if title_element.count() > 0 else ""
+            # 等待标题元素出现
+            try:
+                self.page.wait_for_selector('h1, .item_title, [class*="title"]', timeout=10000, state='visible')
+            except Exception as e:
+                logger.warning(f"等待标题元素超时: {url}")
+
+            self.page.wait_for_timeout(1000)
+
+            # 标题 - 尝试多个选择器
+            title = ""
+            for selector in ['h1.title', 'h1', '.item_title', '.product-title', '[itemprop="name"]']:
+                title_element = self.page.locator(selector).first
+                if title_element.count() > 0:
+                    title = title_element.inner_text().strip()
+                    if title:
+                        break
 
             if not title:
                 logger.warning(f"无法提取标题: {url}")
                 return None
 
-            # 价格
+            # 价格 - 尝试多个选择器
             price = None
-            price_element = self.page.locator('.price, .item_price, [class*="price"]').first
-            if price_element.count() > 0:
-                price_text = price_element.inner_text().strip()
-                price_match = re.search(r'[¥￥]?\s*([0-9,]+)', price_text)
-                if price_match:
-                    price = float(price_match.group(1).replace(',', ''))
+            for selector in ['.price', '.item_price', '[class*="price"]', '[itemprop="price"]', 'p.price']:
+                price_element = self.page.locator(selector).first
+                if price_element.count() > 0:
+                    price_text = price_element.inner_text().strip()
+                    price_match = re.search(r'[¥￥]?\s*([0-9,]+)', price_text)
+                    if price_match:
+                        price = float(price_match.group(1).replace(',', ''))
+                        break
 
             # 状态判断
             status = "available"
@@ -142,11 +163,18 @@ class SurugayaAdapter(BaseAdapter):
 
             # 图片
             image_url = None
-            img_element = self.page.locator('.item_img img, .product_img img, img[alt]').first
-            if img_element.count() > 0:
-                image_url = img_element.get_attribute('src')
-                if image_url and not image_url.startswith('http'):
-                    image_url = f"https://www.suruga-ya.jp{image_url}"
+            # 尝试多个选择器来获取商品图片
+            for selector in ['#main_image', '.item_img img', 'img[itemprop="image"]', '.product-img img']:
+                img_element = self.page.locator(selector).first
+                if img_element.count() > 0:
+                    temp_url = img_element.get_attribute('src')
+                    # 过滤掉close.png等无效图片
+                    if temp_url and 'close.png' not in temp_url and temp_url not in ['', '#']:
+                        if not temp_url.startswith('http'):
+                            image_url = f"https://www.suruga-ya.jp{temp_url}"
+                        else:
+                            image_url = temp_url
+                        break
 
             # 描述
             description = None

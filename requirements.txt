@@ -38,3 +38,4 @@ ratelimit>=2.2.1
 # Async support
 aiohttp>=3.9.0
 asyncio>=3.4.3
+nest-asyncio>=1.5.8

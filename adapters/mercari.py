@@ -19,19 +19,24 @@ class MercariAdapter(BaseAdapter):
         self.playwright = None
         self.browser: Optional[Browser] = None
         self.page: Optional[Page] = None
-        self._init_browser()
+        self._browser_initialized = False
 
-    def _init_browser(self):
-        """初始化浏览器"""
+    def _ensure_browser(self):
+        """延迟初始化浏览器 - 只在第一次使用时创建（线程安全）"""
+        if self._browser_initialized:
+            return
+
         try:
+            logger.info("初始化Mercari浏览器...")
             self.playwright = sync_playwright().start()
             self.browser = self.playwright.chromium.launch(headless=self.headless)
             self.page = self.browser.new_page(
                 user_agent=self._get_random_user_agent()
             )
+            self._browser_initialized = True
             logger.info("Mercari浏览器初始化成功")
         except Exception as e:
-            logger.error(f"浏览器初始化失败: {e}")
+            logger.error(f"Mercari浏览器初始化失败: {e}")
             raise
 
     def build_search_url(self, keyword: str) -> str:
@@ -50,6 +55,7 @@ class MercariAdapter(BaseAdapter):
         Returns:
             商品详情页URL列表
         """
+        self._ensure_browser()  # 延迟初始化浏览器
         all_urls = set()
 
         for keyword in keywords:
@@ -102,6 +108,7 @@ class MercariAdapter(BaseAdapter):
         Returns:
             ScrapedItem对象
         """
+        self._ensure_browser()  # 确保浏览器已初始化
         logger.debug(f"爬取Mercari商品详情: {url}")
 
         try:
